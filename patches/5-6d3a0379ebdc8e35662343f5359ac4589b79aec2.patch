@@ -1,0 +1,58 @@
+From 6d3a0379ebdc8e35662343f5359ac4589b79aec2 Mon Sep 17 00:00:00 2001
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Mon, 28 Nov 2016 11:47:01 +0530
+Subject: [PATCH] powerpc/mm: Add radix__tlb_flush_pte_p9_dd1()
+
+Now that we have page size details encoded in pte using software pte
+bits, use that to find the page size needed for tlb flush.
+
+This function should only be used on P9 DD1, so give it a horrible name
+to make that clear.
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/include/asm/book3s/64/tlbflush-radix.h |  2 ++
+ arch/powerpc/mm/tlb-radix.c                         | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/tlbflush-radix.h b/arch/powerpc/include/asm/book3s/64/tlbflush-radix.h
+index a9e19cb..cc7fbde 100644
+--- a/arch/powerpc/include/asm/book3s/64/tlbflush-radix.h
++++ b/arch/powerpc/include/asm/book3s/64/tlbflush-radix.h
+@@ -42,4 +42,6 @@ extern void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
+ 				     unsigned long page_size);
+ extern void radix__flush_tlb_lpid(unsigned long lpid);
+ extern void radix__flush_tlb_all(void);
++extern void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
++					unsigned long address);
+ #endif
+diff --git a/arch/powerpc/mm/tlb-radix.c b/arch/powerpc/mm/tlb-radix.c
+index bda8c43..2822a82 100644
+--- a/arch/powerpc/mm/tlb-radix.c
++++ b/arch/powerpc/mm/tlb-radix.c
+@@ -424,3 +424,21 @@ void radix__flush_tlb_all(void)
+ 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(0) : "memory");
+ 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+ }
++
++void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
++				 unsigned long address)
++{
++	/*
++	 * We track page size in pte only for DD1, So we can
++	 * call this only on DD1.
++	 */
++	if (!cpu_has_feature(CPU_FTR_POWER9_DD1)) {
++		VM_WARN_ON(1);
++		return;
++	}
++
++	if (old_pte & _PAGE_LARGE)
++		radix__flush_tlb_page_psize(mm, address, MMU_PAGE_2M);
++	else
++		radix__flush_tlb_page_psize(mm, address, mmu_virtual_psize);
++}
+-- 
+2.7.4
+

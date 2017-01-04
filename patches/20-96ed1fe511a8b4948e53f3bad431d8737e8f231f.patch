@@ -1,0 +1,51 @@
+From 96ed1fe511a8b4948e53f3bad431d8737e8f231f Mon Sep 17 00:00:00 2001
+From: Michael Neuling <mikey@neuling.org>
+Date: Fri, 18 Nov 2016 14:08:56 +1100
+Subject: [PATCH] powerpc/mm/radix: Invalidate ERAT on tlbiel for POWER9 DD1
+
+On POWER9 DD1, when we do a local TLB invalidate we also need to explicitly
+invalidate the ERAT.
+
+Signed-off-by: Michael Neuling <mikey@neuling.org>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/include/asm/ppc-opcode.h | 1 +
+ arch/powerpc/mm/tlb-radix.c           | 4 ++++
+ 2 files changed, 5 insertions(+)
+
+diff --git a/arch/powerpc/include/asm/ppc-opcode.h b/arch/powerpc/include/asm/ppc-opcode.h
+index 0132831..c56ea8c 100644
+--- a/arch/powerpc/include/asm/ppc-opcode.h
++++ b/arch/powerpc/include/asm/ppc-opcode.h
+@@ -460,5 +460,6 @@
+ 
+ #define PPC_SLBIA(IH)	stringify_in_c(.long PPC_INST_SLBIA | \
+ 				       ((IH & 0x7) << 21))
++#define PPC_INVALIDATE_ERAT	PPC_SLBIA(7)
+ 
+ #endif /* _ASM_POWERPC_PPC_OPCODE_H */
+diff --git a/arch/powerpc/mm/tlb-radix.c b/arch/powerpc/mm/tlb-radix.c
+index bda8c43..3493cf4 100644
+--- a/arch/powerpc/mm/tlb-radix.c
++++ b/arch/powerpc/mm/tlb-radix.c
+@@ -50,6 +50,8 @@ static inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
+ 	for (set = 0; set < POWER9_TLB_SETS_RADIX ; set++) {
+ 		__tlbiel_pid(pid, set, ric);
+ 	}
++	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
++		asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
+ 	return;
+ }
+ 
+@@ -83,6 +85,8 @@ static inline void _tlbiel_va(unsigned long va, unsigned long pid,
+ 	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
+ 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
+ 	asm volatile("ptesync": : :"memory");
++	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
++		asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
+ }
+ 
+ static inline void _tlbie_va(unsigned long va, unsigned long pid,
+-- 
+2.7.4
+

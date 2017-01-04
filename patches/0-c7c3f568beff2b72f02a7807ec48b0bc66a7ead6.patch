@@ -1,0 +1,187 @@
+From c7c3f568beff2b72f02a7807ec48b0bc66a7ead6 Mon Sep 17 00:00:00 2001
+From: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+Date: Fri, 2 Dec 2016 06:05:02 +0530
+Subject: [PATCH] powerpc/perf: macros for power9 format encoding
+
+Patch to add macros and contants to support the power9 raw
+event encoding format. Couple of functions added since some of the
+bits fields like PMCxCOMB and THRESH_CMP has different width and location
+within MMCR* in power9.
+
+Signed-off-by: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/perf/isa207-common.c | 57 ++++++++++++++++++++++++++++++++++-----
+ arch/powerpc/perf/isa207-common.h | 30 ++++++++++++++++++++-
+ 2 files changed, 79 insertions(+), 8 deletions(-)
+
+diff --git a/arch/powerpc/perf/isa207-common.c b/arch/powerpc/perf/isa207-common.c
+index 2a2040e..50e598c 100644
+--- a/arch/powerpc/perf/isa207-common.c
++++ b/arch/powerpc/perf/isa207-common.c
+@@ -55,6 +55,48 @@ static inline bool event_is_fab_match(u64 event)
+ 	return (event == 0x30056 || event == 0x4f052);
+ }
+ 
++static bool is_event_valid(u64 event)
++{
++	u64 valid_mask = EVENT_VALID_MASK;
++
++	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
++		valid_mask = p9_EVENT_VALID_MASK;
++
++	return !(event & ~valid_mask);
++}
++
++static u64 mmcra_sdar_mode(u64 event)
++{
++	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
++		return p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
++
++	return MMCRA_SDAR_MODE_TLB;
++}
++
++static u64 thresh_cmp_val(u64 value)
++{
++	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
++		return value << p9_MMCRA_THR_CMP_SHIFT;
++
++	return value << MMCRA_THR_CMP_SHIFT;
++}
++
++static unsigned long combine_from_event(u64 event)
++{
++	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
++		return p9_EVENT_COMBINE(event);
++
++	return EVENT_COMBINE(event);
++}
++
++static unsigned long combine_shift(unsigned long pmc)
++{
++	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
++		return p9_MMCR1_COMBINE_SHIFT(pmc);
++
++	return MMCR1_COMBINE_SHIFT(pmc);
++}
++
+ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
+ {
+ 	unsigned int unit, pmc, cache, ebb;
+@@ -62,7 +104,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
+ 
+ 	mask = value = 0;
+ 
+-	if (event & ~EVENT_VALID_MASK)
++	if (!is_event_valid(event))
+ 		return -1;
+ 
+ 	pmc   = (event >> EVENT_PMC_SHIFT)        & EVENT_PMC_MASK;
+@@ -189,15 +231,13 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
+ 			pmc_inuse |= 1 << pmc;
+ 	}
+ 
+-	/* In continuous sampling mode, update SDAR on TLB miss */
+-	mmcra = MMCRA_SDAR_MODE_TLB;
+-	mmcr1 = mmcr2 = 0;
++	mmcra = mmcr1 = mmcr2 = 0;
+ 
+ 	/* Second pass: assign PMCs, set all MMCR1 fields */
+ 	for (i = 0; i < n_ev; ++i) {
+ 		pmc     = (event[i] >> EVENT_PMC_SHIFT) & EVENT_PMC_MASK;
+ 		unit    = (event[i] >> EVENT_UNIT_SHIFT) & EVENT_UNIT_MASK;
+-		combine = (event[i] >> EVENT_COMBINE_SHIFT) & EVENT_COMBINE_MASK;
++		combine = combine_from_event(event[i]);
+ 		psel    =  event[i] & EVENT_PSEL_MASK;
+ 
+ 		if (!pmc) {
+@@ -211,10 +251,13 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
+ 
+ 		if (pmc <= 4) {
+ 			mmcr1 |= unit << MMCR1_UNIT_SHIFT(pmc);
+-			mmcr1 |= combine << MMCR1_COMBINE_SHIFT(pmc);
++			mmcr1 |= combine << combine_shift(pmc);
+ 			mmcr1 |= psel << MMCR1_PMCSEL_SHIFT(pmc);
+ 		}
+ 
++		/* In continuous sampling mode, update SDAR on TLB miss */
++		mmcra |= mmcra_sdar_mode(event[i]);
++
+ 		if (event[i] & EVENT_IS_L1) {
+ 			cache = event[i] >> EVENT_CACHE_SEL_SHIFT;
+ 			mmcr1 |= (cache & 1) << MMCR1_IC_QUAL_SHIFT;
+@@ -245,7 +288,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
+ 			val = (event[i] >> EVENT_THR_SEL_SHIFT) & EVENT_THR_SEL_MASK;
+ 			mmcra |= val << MMCRA_THR_SEL_SHIFT;
+ 			val = (event[i] >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
+-			mmcra |= val << MMCRA_THR_CMP_SHIFT;
++			mmcra |= thresh_cmp_val(val);
+ 		}
+ 
+ 		if (event[i] & EVENT_WANTS_BHRB) {
+diff --git a/arch/powerpc/perf/isa207-common.h b/arch/powerpc/perf/isa207-common.h
+index 4d0a4e5..90495f1 100644
+--- a/arch/powerpc/perf/isa207-common.h
++++ b/arch/powerpc/perf/isa207-common.h
+@@ -107,6 +107,7 @@
+ #define EVENT_UNIT_MASK		0xf
+ #define EVENT_COMBINE_SHIFT	11	/* Combine bit */
+ #define EVENT_COMBINE_MASK	0x1
++#define EVENT_COMBINE(v)	(((v) >> EVENT_COMBINE_SHIFT) & EVENT_COMBINE_MASK)
+ #define EVENT_MARKED_SHIFT	8	/* Marked bit */
+ #define EVENT_MARKED_MASK	0x1
+ #define EVENT_IS_MARKED		(EVENT_MARKED_MASK << EVENT_MARKED_SHIFT)
+@@ -134,6 +135,26 @@
+ 	 PERF_SAMPLE_BRANCH_KERNEL      |\
+ 	 PERF_SAMPLE_BRANCH_HV)
+ 
++/* Contants to support power9 raw encoding format */
++#define p9_EVENT_COMBINE_SHIFT	10	/* Combine bit */
++#define p9_EVENT_COMBINE_MASK	0x3ull
++#define p9_EVENT_COMBINE(v)	(((v) >> p9_EVENT_COMBINE_SHIFT) & p9_EVENT_COMBINE_MASK)
++#define p9_SDAR_MODE_SHIFT	50
++#define p9_SDAR_MODE_MASK	0x3ull
++#define p9_SDAR_MODE(v)		(((v) >> p9_SDAR_MODE_SHIFT) & p9_SDAR_MODE_MASK)
++
++#define p9_EVENT_VALID_MASK		\
++	((p9_SDAR_MODE_MASK   << p9_SDAR_MODE_SHIFT		|	\
++	(EVENT_THRESH_MASK    << EVENT_THRESH_SHIFT)		|	\
++	(EVENT_SAMPLE_MASK    << EVENT_SAMPLE_SHIFT)		|	\
++	(EVENT_CACHE_SEL_MASK << EVENT_CACHE_SEL_SHIFT)		|	\
++	(EVENT_PMC_MASK       << EVENT_PMC_SHIFT)		|	\
++	(EVENT_UNIT_MASK      << EVENT_UNIT_SHIFT)		|	\
++	(p9_EVENT_COMBINE_MASK << p9_EVENT_COMBINE_SHIFT)	|	\
++	(EVENT_MARKED_MASK    << EVENT_MARKED_SHIFT)		|	\
++	 EVENT_LINUX_MASK					|	\
++	 EVENT_PSEL_MASK))
++
+ /*
+  * Layout of constraint bits:
+  *
+@@ -210,15 +231,22 @@
+ #define MMCR1_DC_QUAL_SHIFT		47
+ #define MMCR1_IC_QUAL_SHIFT		46
+ 
++/* MMCR1 Combine bits macro for power9 */
++#define p9_MMCR1_COMBINE_SHIFT(pmc)	(38 - ((pmc - 1) * 2))
++
+ /* Bits in MMCRA for PowerISA v2.07 */
+ #define MMCRA_SAMP_MODE_SHIFT		1
+ #define MMCRA_SAMP_ELIG_SHIFT		4
+ #define MMCRA_THR_CTL_SHIFT		8
+ #define MMCRA_THR_SEL_SHIFT		16
+ #define MMCRA_THR_CMP_SHIFT		32
+-#define MMCRA_SDAR_MODE_TLB		(1ull << 42)
++#define MMCRA_SDAR_MODE_SHIFT		42
++#define MMCRA_SDAR_MODE_TLB		(1ull << MMCRA_SDAR_MODE_SHIFT)
+ #define MMCRA_IFM_SHIFT			30
+ 
++/* MMCR1 Threshold Compare bit constant for power9 */
++#define p9_MMCRA_THR_CMP_SHIFT	45
++
+ /* Bits in MMCR2 for PowerISA v2.07 */
+ #define MMCR2_FCS(pmc)			(1ull << (63 - (((pmc) - 1) * 9)))
+ #define MMCR2_FCP(pmc)			(1ull << (62 - (((pmc) - 1) * 9)))
+-- 
+2.7.4
+

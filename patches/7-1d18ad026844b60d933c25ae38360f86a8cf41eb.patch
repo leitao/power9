@@ -1,0 +1,43 @@
+From 1d18ad026844b60d933c25ae38360f86a8cf41eb Mon Sep 17 00:00:00 2001
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Tue, 15 Nov 2016 17:56:15 +1100
+Subject: [PATCH] powerpc/mm: Detect instruction fetch denied and report
+
+ISA 3 allows for prevention of instruction fetch and execution
+of user mode pages. If such an error occurs, SRR1 bit 35 reports the
+error. We catch and report the error in do_page_fault().
+
+Signed-off-by: Balbir Singh <bsingharora@gmail.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/mm/fault.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
+index 73932f4..a17029aa 100644
+--- a/arch/powerpc/mm/fault.c
++++ b/arch/powerpc/mm/fault.c
+@@ -391,6 +391,12 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
+ 
+ 	if (is_exec) {
+ 		/*
++		 * An execution fault + no execute ?
++		 */
++		if (regs->msr & SRR1_ISI_N_OR_G)
++			goto bad_area;
++
++		/*
+ 		 * Allow execution from readable areas if the MMU does not
+ 		 * provide separate controls over reading and executing.
+ 		 *
+@@ -404,6 +410,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
+ 		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
+ 		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
+ 			goto bad_area;
++
+ #ifdef CONFIG_PPC_STD_MMU
+ 		/*
+ 		 * protfault should only happen due to us
+-- 
+2.7.4
+

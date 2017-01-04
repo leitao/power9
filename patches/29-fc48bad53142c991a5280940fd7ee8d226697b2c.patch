@@ -1,0 +1,51 @@
+From fc48bad53142c991a5280940fd7ee8d226697b2c Mon Sep 17 00:00:00 2001
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Fri, 19 Aug 2016 14:22:35 +0530
+Subject: [PATCH] powerpc/64/kexec: NULL check "clear_all" in kexec_sequence
+
+With Radix, it can be NULL even on !BOOKE these days so replace
+the ifdef with a NULL check which is cleaner anyway.
+
+Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Balbir Singh <bsingharora@gmail.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/kernel/misc_64.S | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/arch/powerpc/kernel/misc_64.S b/arch/powerpc/kernel/misc_64.S
+index 5d7e583..939e3f5 100644
+--- a/arch/powerpc/kernel/misc_64.S
++++ b/arch/powerpc/kernel/misc_64.S
+@@ -660,7 +660,9 @@ _GLOBAL(kexec_sequence)
+ 	li	r6,1
+ 	stw	r6,kexec_flag-1b(5)
+ 
+-#ifndef CONFIG_PPC_BOOK3E
++	cmpdi	r27,0
++	beq	1f
++
+ 	/* clear out hardware hash page table and tlb */
+ #ifdef PPC64_ELF_ABI_v1
+ 	ld	r12,0(r27)		/* deref function descriptor */
+@@ -669,7 +671,6 @@ _GLOBAL(kexec_sequence)
+ #endif
+ 	mtctr	r12
+ 	bctrl				/* mmu_hash_ops.hpte_clear_all(void); */
+-#endif /* !CONFIG_PPC_BOOK3E */
+ 
+ /*
+  *   kexec image calling is:
+@@ -696,7 +697,7 @@ _GLOBAL(kexec_sequence)
+  *    are the boot cpu ?????
+  *    other device tree differences (prop sizes, va vs pa, etc)...
+  */
+-	mr	r3,r25	# my phys cpu
++1:	mr	r3,r25	# my phys cpu
+ 	mr	r4,r30	# start, aka phys mem offset
+ 	mtlr	4
+ 	li	r5,0
+-- 
+2.7.4
+

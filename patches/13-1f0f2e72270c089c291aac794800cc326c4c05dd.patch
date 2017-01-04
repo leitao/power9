@@ -1,0 +1,31 @@
+From 1f0f2e72270c089c291aac794800cc326c4c05dd Mon Sep 17 00:00:00 2001
+From: Michael Ellerman <mpe@ellerman.id.au>
+Date: Tue, 22 Nov 2016 14:50:39 +1100
+Subject: [PATCH] powerpc/reg: Add definition for LPCR_PECE_HVEE
+
+ISA 3.0 defines a new PECE (Power-saving mode Exit Cause Enable) field
+in the LPCR (Logical Partitioning Control Register), called
+LPCR_PECE_HVEE (Hypervisor Virtualization Exit Enable).
+
+KVM code will need to know about this bit, so add a definition for it.
+
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/include/asm/reg.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/powerpc/include/asm/reg.h b/arch/powerpc/include/asm/reg.h
+index 30d9adb..c94df45 100644
+--- a/arch/powerpc/include/asm/reg.h
++++ b/arch/powerpc/include/asm/reg.h
+@@ -359,6 +359,7 @@
+ #define     LPCR_PECE0		ASM_CONST(0x0000000000004000)	/* ext. exceptions can cause exit */
+ #define     LPCR_PECE1		ASM_CONST(0x0000000000002000)	/* decrementer can cause exit */
+ #define     LPCR_PECE2		ASM_CONST(0x0000000000001000)	/* machine check etc can cause exit */
++#define     LPCR_PECE_HVEE	ASM_CONST(0x0000400000000000)	/* P9 Wakeup on HV interrupts */
+ #define   LPCR_MER		ASM_CONST(0x0000000000000800)	/* Mediated External Exception */
+ #define   LPCR_MER_SH		11
+ #define	  LPCR_GTSE		ASM_CONST(0x0000000000000400)  	/* Guest Translation Shootdown Enable */
+-- 
+2.7.4
+

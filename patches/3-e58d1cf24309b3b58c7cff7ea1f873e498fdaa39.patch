@@ -1,0 +1,39 @@
+From e58d1cf24309b3b58c7cff7ea1f873e498fdaa39 Mon Sep 17 00:00:00 2001
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Mon, 28 Nov 2016 11:47:03 +0530
+Subject: [PATCH] powerpc/mm: update radix__pte_update to not do full mm tlb
+ flush
+
+When we are updating a pte, we just need to flush the tlb mapping
+that pte. Right now we do a full mm flush because we don't track page
+size. Now that we have page size details in pte use that to do the
+optimized flush
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/include/asm/book3s/64/radix.h | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/radix.h b/arch/powerpc/include/asm/book3s/64/radix.h
+index 36f6369..f4066cf 100644
+--- a/arch/powerpc/include/asm/book3s/64/radix.h
++++ b/arch/powerpc/include/asm/book3s/64/radix.h
+@@ -145,13 +145,7 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
+ 		 * new value of pte
+ 		 */
+ 		new_pte = (old_pte | set) & ~clr;
+-
+-		/*
+-		 * For now let's do heavy pid flush
+-		 * radix__flush_tlb_page_psize(mm, addr, mmu_virtual_psize);
+-		 */
+-		radix__flush_tlb_mm(mm);
+-
++		radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
+ 		__radix_pte_update(ptep, 0, new_pte);
+ 	} else
+ 		old_pte = __radix_pte_update(ptep, clr, set);
+-- 
+2.7.4
+

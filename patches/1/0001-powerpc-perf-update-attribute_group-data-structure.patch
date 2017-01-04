@@ -1,0 +1,67 @@
+From 520ed5b04f3e807e5bf1b6981ffb50524632fc5f Mon Sep 17 00:00:00 2001
+From: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+Date: Fri, 2 Dec 2016 06:05:00 +0530
+Subject: [PATCH] powerpc/perf: update attribute_group data structure
+
+Rename the power_pmu and attribute_group variables that
+support PowerISA v2.07. Add a cpu feature flag check to pick
+the PowerISA v2.07 format structures to support.
+
+Signed-off-by: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/perf/power9-pmu.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/arch/powerpc/perf/power9-pmu.c b/arch/powerpc/perf/power9-pmu.c
+index 443511b..0bdbee1 100644
+--- a/arch/powerpc/perf/power9-pmu.c
++++ b/arch/powerpc/perf/power9-pmu.c
+@@ -93,7 +93,7 @@ static struct attribute_group power9_pmu_events_group = {
+ 	.attrs = power9_events_attr,
+ };
+ 
+-static const struct attribute_group *power9_pmu_attr_groups[] = {
++static const struct attribute_group *power9_isa207_pmu_attr_groups[] = {
+ 	&isa207_pmu_format_group,
+ 	&power9_pmu_events_group,
+ 	NULL,
+@@ -260,7 +260,7 @@ static int power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+ 
+ #undef C
+ 
+-static struct power_pmu power9_pmu = {
++static struct power_pmu power9_isa207_pmu = {
+ 	.name			= "POWER9",
+ 	.n_counter		= MAX_PMU_COUNTERS,
+ 	.add_fields		= ISA207_ADD_FIELDS,
+@@ -274,20 +274,23 @@ static struct power_pmu power9_pmu = {
+ 	.n_generic		= ARRAY_SIZE(power9_generic_events),
+ 	.generic_events		= power9_generic_events,
+ 	.cache_events		= &power9_cache_events,
+-	.attr_groups		= power9_pmu_attr_groups,
++	.attr_groups		= power9_isa207_pmu_attr_groups,
+ 	.bhrb_nr		= 32,
+ };
+ 
+ static int __init init_power9_pmu(void)
+ {
+-	int rc;
++	int rc = 0;
+ 
+ 	/* Comes from cpu_specs[] */
+ 	if (!cur_cpu_spec->oprofile_cpu_type ||
+ 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power9"))
+ 		return -ENODEV;
+ 
+-	rc = register_power_pmu(&power9_pmu);
++	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
++		rc = register_power_pmu(&power9_isa207_pmu);
++	}
++
+ 	if (rc)
+ 		return rc;
+ 
+-- 
+2.7.4
+

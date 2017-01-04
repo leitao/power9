@@ -1,0 +1,142 @@
+From b3603e174fc81598e8b060d5e9aafe19ee6e65cf Mon Sep 17 00:00:00 2001
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Mon, 28 Nov 2016 11:47:02 +0530
+Subject: [PATCH] powerpc/mm: update radix__ptep_set_access_flag to not do full
+ mm tlb flush
+
+When we are updating a pte, we just need to flush the tlb mapping
+that pte. Right now we do a full mm flush because we don't track the page
+size. Now that we have page size details in pte use that to do the
+optimized flush
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/include/asm/book3s/32/pgtable.h |  3 ++-
+ arch/powerpc/include/asm/book3s/64/pgtable.h |  5 +++--
+ arch/powerpc/include/asm/book3s/64/radix.h   | 11 +++--------
+ arch/powerpc/include/asm/nohash/32/pgtable.h |  3 ++-
+ arch/powerpc/include/asm/nohash/64/pgtable.h |  3 ++-
+ arch/powerpc/mm/pgtable-book3s64.c           |  3 ++-
+ arch/powerpc/mm/pgtable.c                    |  2 +-
+ 7 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/book3s/32/pgtable.h b/arch/powerpc/include/asm/book3s/32/pgtable.h
+index 6b8b2d5..dc58980 100644
+--- a/arch/powerpc/include/asm/book3s/32/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/32/pgtable.h
+@@ -224,7 +224,8 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 
+ 
+ static inline void __ptep_set_access_flags(struct mm_struct *mm,
+-					   pte_t *ptep, pte_t entry)
++					   pte_t *ptep, pte_t entry,
++					   unsigned long address)
+ {
+ 	unsigned long set = pte_val(entry) &
+ 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index ac66d05..bbea004 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -578,10 +578,11 @@ static inline bool check_pte_access(unsigned long access, unsigned long ptev)
+  */
+ 
+ static inline void __ptep_set_access_flags(struct mm_struct *mm,
+-					   pte_t *ptep, pte_t entry)
++					   pte_t *ptep, pte_t entry,
++					   unsigned long address)
+ {
+ 	if (radix_enabled())
+-		return radix__ptep_set_access_flags(mm, ptep, entry);
++		return radix__ptep_set_access_flags(mm, ptep, entry, address);
+ 	return hash__ptep_set_access_flags(ptep, entry);
+ }
+ 
+diff --git a/arch/powerpc/include/asm/book3s/64/radix.h b/arch/powerpc/include/asm/book3s/64/radix.h
+index d2c5c06..36f6369 100644
+--- a/arch/powerpc/include/asm/book3s/64/radix.h
++++ b/arch/powerpc/include/asm/book3s/64/radix.h
+@@ -167,7 +167,8 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
+  * function doesn't need to invalidate tlb.
+  */
+ static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
+-						pte_t *ptep, pte_t entry)
++						pte_t *ptep, pte_t entry,
++						unsigned long address)
+ {
+ 
+ 	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED |
+@@ -183,13 +184,7 @@ static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
+ 		 * new value of pte
+ 		 */
+ 		new_pte = old_pte | set;
+-
+-		/*
+-		 * For now let's do heavy pid flush
+-		 * radix__flush_tlb_page_psize(mm, addr, mmu_virtual_psize);
+-		 */
+-		radix__flush_tlb_mm(mm);
+-
++		radix__flush_tlb_pte_p9_dd1(old_pte, mm, address);
+ 		__radix_pte_update(ptep, 0, new_pte);
+ 	} else
+ 		__radix_pte_update(ptep, 0, set);
+diff --git a/arch/powerpc/include/asm/nohash/32/pgtable.h b/arch/powerpc/include/asm/nohash/32/pgtable.h
+index c219ef7..65073fb 100644
+--- a/arch/powerpc/include/asm/nohash/32/pgtable.h
++++ b/arch/powerpc/include/asm/nohash/32/pgtable.h
+@@ -268,7 +268,8 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 
+ 
+ static inline void __ptep_set_access_flags(struct mm_struct *mm,
+-					   pte_t *ptep, pte_t entry)
++					   pte_t *ptep, pte_t entry,
++					   unsigned long address)
+ {
+ 	unsigned long set = pte_val(entry) &
+ 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
+diff --git a/arch/powerpc/include/asm/nohash/64/pgtable.h b/arch/powerpc/include/asm/nohash/64/pgtable.h
+index e9e540a..53a41b0 100644
+--- a/arch/powerpc/include/asm/nohash/64/pgtable.h
++++ b/arch/powerpc/include/asm/nohash/64/pgtable.h
+@@ -289,7 +289,8 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
+  * function doesn't need to flush the hash entry
+  */
+ static inline void __ptep_set_access_flags(struct mm_struct *mm,
+-					   pte_t *ptep, pte_t entry)
++					   pte_t *ptep, pte_t entry,
++					   unsigned long address)
+ {
+ 	unsigned long bits = pte_val(entry) &
+ 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
+diff --git a/arch/powerpc/mm/pgtable-book3s64.c b/arch/powerpc/mm/pgtable-book3s64.c
+index f4f437c..ebf9782 100644
+--- a/arch/powerpc/mm/pgtable-book3s64.c
++++ b/arch/powerpc/mm/pgtable-book3s64.c
+@@ -35,7 +35,8 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
+ #endif
+ 	changed = !pmd_same(*(pmdp), entry);
+ 	if (changed) {
+-		__ptep_set_access_flags(vma->vm_mm, pmdp_ptep(pmdp), pmd_pte(entry));
++		__ptep_set_access_flags(vma->vm_mm, pmdp_ptep(pmdp),
++					pmd_pte(entry), address);
+ 		flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ 	}
+ 	return changed;
+diff --git a/arch/powerpc/mm/pgtable.c b/arch/powerpc/mm/pgtable.c
+index 911fdfb..cb39c8b 100644
+--- a/arch/powerpc/mm/pgtable.c
++++ b/arch/powerpc/mm/pgtable.c
+@@ -224,7 +224,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
+ 	if (changed) {
+ 		if (!is_vm_hugetlb_page(vma))
+ 			assert_pte_locked(vma->vm_mm, address);
+-		__ptep_set_access_flags(vma->vm_mm, ptep, entry);
++		__ptep_set_access_flags(vma->vm_mm, ptep, entry, address);
+ 		flush_tlb_page(vma, address);
+ 	}
+ 	return changed;
+-- 
+2.7.4
+

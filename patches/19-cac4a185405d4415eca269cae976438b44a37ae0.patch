@@ -1,0 +1,50 @@
+From cac4a185405d4415eca269cae976438b44a37ae0 Mon Sep 17 00:00:00 2001
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Thu, 17 Nov 2016 15:46:23 +0530
+Subject: [PATCH] powerpc/mm: Fix missing update of HID register on secondary
+ CPUs
+
+We need to update on secondaries for the selected MMU mode.
+
+Fixes: ad410674f560 ("powerpc/mm: Update the HID bit when switching from radix to hash")
+Reported-by: Michael Neuling <mikey@neuling.org>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/mm/hash_utils_64.c | 4 ++++
+ arch/powerpc/mm/pgtable-radix.c | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+index 44d3c3a..5503078 100644
+--- a/arch/powerpc/mm/hash_utils_64.c
++++ b/arch/powerpc/mm/hash_utils_64.c
+@@ -1029,6 +1029,10 @@ void hash__early_init_mmu_secondary(void)
+ {
+ 	/* Initialize hash table for that CPU */
+ 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
++
++		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
++			update_hid_for_hash();
++
+ 		if (!cpu_has_feature(CPU_FTR_ARCH_300))
+ 			mtspr(SPRN_SDR1, _SDR1);
+ 		else
+diff --git a/arch/powerpc/mm/pgtable-radix.c b/arch/powerpc/mm/pgtable-radix.c
+index ed7bddc..688b545 100644
+--- a/arch/powerpc/mm/pgtable-radix.c
++++ b/arch/powerpc/mm/pgtable-radix.c
+@@ -388,6 +388,10 @@ void radix__early_init_mmu_secondary(void)
+ 	 * update partition table control register and UPRT
+ 	 */
+ 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
++
++		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
++			update_hid_for_radix();
++
+ 		lpcr = mfspr(SPRN_LPCR);
+ 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
+ 
+-- 
+2.7.4
+

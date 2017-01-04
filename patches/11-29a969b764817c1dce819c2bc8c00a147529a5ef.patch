@@ -1,0 +1,133 @@
+From 29a969b764817c1dce819c2bc8c00a147529a5ef Mon Sep 17 00:00:00 2001
+From: Michael Neuling <mikey@neuling.org>
+Date: Mon, 31 Oct 2016 13:19:39 +1100
+Subject: [PATCH] powerpc: Revert Load Monitor Register Support
+
+Load monitored is no longer supported on POWER9 so let's remove the
+code.
+
+This reverts commit bd3ea317fddf ("powerpc: Load Monitor Register
+Support").
+
+Signed-off-by: Michael Neuling <mikey@neuling.org>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/include/asm/processor.h |  2 --
+ arch/powerpc/include/asm/reg.h       |  5 -----
+ arch/powerpc/kernel/process.c        | 18 ------------------
+ arch/powerpc/kernel/traps.c          |  9 ---------
+ 4 files changed, 34 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/processor.h b/arch/powerpc/include/asm/processor.h
+index c07c31b..5c0a665 100644
+--- a/arch/powerpc/include/asm/processor.h
++++ b/arch/powerpc/include/asm/processor.h
+@@ -312,8 +312,6 @@ struct thread_struct {
+ 	unsigned long	mmcr2;
+ 	unsigned 	mmcr0;
+ 	unsigned 	used_ebb;
+-	unsigned long	lmrr;
+-	unsigned long	lmser;
+ #endif
+ };
+ 
+diff --git a/arch/powerpc/include/asm/reg.h b/arch/powerpc/include/asm/reg.h
+index 9cd4e8c..c491cfe 100644
+--- a/arch/powerpc/include/asm/reg.h
++++ b/arch/powerpc/include/asm/reg.h
+@@ -292,8 +292,6 @@
+ #define SPRN_HRMOR	0x139	/* Real mode offset register */
+ #define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
+ #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
+-#define SPRN_LMRR	0x32D	/* Load Monitor Region Register */
+-#define SPRN_LMSER	0x32E	/* Load Monitor Section Enable Register */
+ #define SPRN_IC		0x350	/* Virtual Instruction Count */
+ #define SPRN_VTB	0x351	/* Virtual Time Base */
+ #define SPRN_LDBAR	0x352	/* LD Base Address Register */
+@@ -304,7 +302,6 @@
+ #define SPRN_PMCR	0x374	/* Power Management Control Register */
+ 
+ /* HFSCR and FSCR bit numbers are the same */
+-#define FSCR_LM_LG	11	/* Enable Load Monitor Registers */
+ #define FSCR_TAR_LG	8	/* Enable Target Address Register */
+ #define FSCR_EBB_LG	7	/* Enable Event Based Branching */
+ #define FSCR_TM_LG	5	/* Enable Transactional Memory */
+@@ -314,12 +311,10 @@
+ #define FSCR_VECVSX_LG	1	/* Enable VMX/VSX  */
+ #define FSCR_FP_LG	0	/* Enable Floating Point */
+ #define SPRN_FSCR	0x099	/* Facility Status & Control Register */
+-#define   FSCR_LM	__MASK(FSCR_LM_LG)
+ #define   FSCR_TAR	__MASK(FSCR_TAR_LG)
+ #define   FSCR_EBB	__MASK(FSCR_EBB_LG)
+ #define   FSCR_DSCR	__MASK(FSCR_DSCR_LG)
+ #define SPRN_HFSCR	0xbe	/* HV=1 Facility Status & Control Register */
+-#define   HFSCR_LM	__MASK(FSCR_LM_LG)
+ #define   HFSCR_TAR	__MASK(FSCR_TAR_LG)
+ #define   HFSCR_EBB	__MASK(FSCR_EBB_LG)
+ #define   HFSCR_TM	__MASK(FSCR_TM_LG)
+diff --git a/arch/powerpc/kernel/process.c b/arch/powerpc/kernel/process.c
+index ce6dc61..5b62e8c 100644
+--- a/arch/powerpc/kernel/process.c
++++ b/arch/powerpc/kernel/process.c
+@@ -1051,14 +1051,6 @@ static inline void save_sprs(struct thread_struct *t)
+ 		 */
+ 		t->tar = mfspr(SPRN_TAR);
+ 	}
+-
+-	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+-		/* Conditionally save Load Monitor registers, if enabled */
+-		if (t->fscr & FSCR_LM) {
+-			t->lmrr = mfspr(SPRN_LMRR);
+-			t->lmser = mfspr(SPRN_LMSER);
+-		}
+-	}
+ #endif
+ }
+ 
+@@ -1094,16 +1086,6 @@ static inline void restore_sprs(struct thread_struct *old_thread,
+ 		if (old_thread->tar != new_thread->tar)
+ 			mtspr(SPRN_TAR, new_thread->tar);
+ 	}
+-
+-	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+-		/* Conditionally restore Load Monitor registers, if enabled */
+-		if (new_thread->fscr & FSCR_LM) {
+-			if (old_thread->lmrr != new_thread->lmrr)
+-				mtspr(SPRN_LMRR, new_thread->lmrr);
+-			if (old_thread->lmser != new_thread->lmser)
+-				mtspr(SPRN_LMSER, new_thread->lmser);
+-		}
+-	}
+ #endif
+ }
+ 
+diff --git a/arch/powerpc/kernel/traps.c b/arch/powerpc/kernel/traps.c
+index 32c468b..91d278c 100644
+--- a/arch/powerpc/kernel/traps.c
++++ b/arch/powerpc/kernel/traps.c
+@@ -1430,7 +1430,6 @@ void facility_unavailable_exception(struct pt_regs *regs)
+ 		[FSCR_TM_LG] = "TM",
+ 		[FSCR_EBB_LG] = "EBB",
+ 		[FSCR_TAR_LG] = "TAR",
+-		[FSCR_LM_LG] = "LM",
+ 	};
+ 	char *facility = "unknown";
+ 	u64 value;
+@@ -1488,14 +1487,6 @@ void facility_unavailable_exception(struct pt_regs *regs)
+ 			emulate_single_step(regs);
+ 		}
+ 		return;
+-	} else if ((status == FSCR_LM_LG) && cpu_has_feature(CPU_FTR_ARCH_300)) {
+-		/*
+-		 * This process has touched LM, so turn it on forever
+-		 * for this process
+-		 */
+-		current->thread.fscr |= FSCR_LM;
+-		mtspr(SPRN_FSCR, current->thread.fscr);
+-		return;
+ 	}
+ 
+ 	if (status == FSCR_TM_LG) {
+-- 
+2.7.4
+

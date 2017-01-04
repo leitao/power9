@@ -1,0 +1,92 @@
+From 3b10d0095a1e2d6ce11f6537e04806ff8aba9cdd Mon Sep 17 00:00:00 2001
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Tue, 15 Nov 2016 17:56:16 +1100
+Subject: [PATCH] powerpc/mm/radix: Prevent kernel execution of user space
+
+ISA 3 defines new encoded access authority that allows instruction
+access prevention in privileged mode and allows normal access
+to problem state. This patch just enables IAMR (Instruction Authority
+Mask Register), enabling AMR would require more work.
+
+I've tested this with a buggy driver and a simple payload. The payload
+is specific to the build I've tested.
+
+mpe: Also tested with LKDTM:
+
+  # echo EXEC_USERSPACE > /sys/kernel/debug/provoke-crash/DIRECT
+  lkdtm: Performing direct entry EXEC_USERSPACE
+  lkdtm: attempting ok execution at c0000000005bf560
+  lkdtm: attempting bad execution at 00003fff8d940000
+  Unable to handle kernel paging request for instruction fetch
+  Faulting instruction address: 0x3fff8d940000
+  Oops: Kernel access of bad area, sig: 11 [#1]
+  NIP: 00003fff8d940000 LR: c0000000005bfa58 CTR: 00003fff8d940000
+  REGS: c0000000f1fcf900 TRAP: 0400   Not tainted  (4.9.0-rc5-compiler_gcc-6.2.0-00109-g956dbc06232a)
+  MSR: 9000000010009033 <SF,HV,EE,ME,IR,DR,RI,LE>  CR: 48002222  XER: 00000000
+  ...
+  Call Trace:
+    lkdtm_EXEC_USERSPACE+0x104/0x120 (unreliable)
+    lkdtm_do_action+0x3c/0x80
+    direct_entry+0x100/0x1b0
+    full_proxy_write+0x94/0x100
+    __vfs_write+0x3c/0x1b0
+    vfs_write+0xcc/0x230
+    SyS_write+0x60/0x110
+    system_call+0x38/0xfc
+
+Signed-off-by: Balbir Singh <bsingharora@gmail.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/mm/pgtable-radix.c | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/arch/powerpc/mm/pgtable-radix.c b/arch/powerpc/mm/pgtable-radix.c
+index 29e5029..623a0dc 100644
+--- a/arch/powerpc/mm/pgtable-radix.c
++++ b/arch/powerpc/mm/pgtable-radix.c
+@@ -324,6 +324,26 @@ static void radix_init_amor(void)
+ 	mtspr(SPRN_AMOR, (3ul << 62));
+ }
+ 
++static void radix_init_iamr(void)
++{
++	unsigned long iamr;
++
++	/*
++	 * The IAMR should set to 0 on DD1.
++	 */
++	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
++		iamr = 0;
++	else
++		iamr = (1ul << 62);
++
++	/*
++	 * Radix always uses key0 of the IAMR to determine if an access is
++	 * allowed. We set bit 0 (IBM bit 1) of key0, to prevent instruction
++	 * fetch.
++	 */
++	mtspr(SPRN_IAMR, iamr);
++}
++
+ void __init radix__early_init_mmu(void)
+ {
+ 	unsigned long lpcr;
+@@ -385,6 +405,7 @@ void __init radix__early_init_mmu(void)
+ 
+ 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
+ 
++	radix_init_iamr();
+ 	radix_init_pgtable();
+ }
+ 
+@@ -402,6 +423,7 @@ void radix__early_init_mmu_secondary(void)
+ 		      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+ 		radix_init_amor();
+ 	}
++	radix_init_iamr();
+ }
+ 
+ void radix__mmu_cleanup_all(void)
+-- 
+2.7.4
+

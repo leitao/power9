@@ -1,0 +1,49 @@
+From 9dd17e8517f5ccd594a01374b0b41ec1a1c266af Mon Sep 17 00:00:00 2001
+From: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+Date: Mon, 21 Nov 2016 16:02:35 +1100
+Subject: [PATCH] powerpc/64: Define new ISA v3.00 logical PVR value and PCR
+ register value
+
+ISA 3.00 adds the logical PVR value 0x0f000005, so add a definition for
+this.
+
+Define PCR_ARCH_207 to reflect ISA 2.07 compatibility mode in the processor
+compatibility register (PCR).
+
+[paulus@ozlabs.org - moved dummy PCR_ARCH_300 value into next patch]
+
+Signed-off-by: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+Signed-off-by: Paul Mackerras <paulus@ozlabs.org>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/include/asm/reg.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/powerpc/include/asm/reg.h b/arch/powerpc/include/asm/reg.h
+index df81411..30d9adb 100644
+--- a/arch/powerpc/include/asm/reg.h
++++ b/arch/powerpc/include/asm/reg.h
+@@ -382,6 +382,12 @@
+ #define   PCR_VEC_DIS	(1ul << (63-0))	/* Vec. disable (bit NA since POWER8) */
+ #define   PCR_VSX_DIS	(1ul << (63-1))	/* VSX disable (bit NA since POWER8) */
+ #define   PCR_TM_DIS	(1ul << (63-2))	/* Trans. memory disable (POWER8) */
++/*
++ * These bits are used in the function kvmppc_set_arch_compat() to specify and
++ * determine both the compatibility level which we want to emulate and the
++ * compatibility level which the host is capable of emulating.
++ */
++#define   PCR_ARCH_207	0x8		/* Architecture 2.07 */
+ #define   PCR_ARCH_206	0x4		/* Architecture 2.06 */
+ #define   PCR_ARCH_205	0x2		/* Architecture 2.05 */
+ #define	SPRN_HEIR	0x153	/* Hypervisor Emulated Instruction Register */
+@@ -1223,6 +1229,7 @@
+ #define PVR_ARCH_206	0x0f000003
+ #define PVR_ARCH_206p	0x0f100003
+ #define PVR_ARCH_207	0x0f000004
++#define PVR_ARCH_300	0x0f000005
+ 
+ /* Macros for setting and retrieving special purpose registers */
+ #ifndef __ASSEMBLY__
+-- 
+2.7.4
+

@@ -1,0 +1,38 @@
+From 378f96d3cd442d5cb8e2692d8767a4c036070594 Mon Sep 17 00:00:00 2001
+From: "Gautham R. Shenoy" <ego@linux.vnet.ibm.com>
+Date: Tue, 22 Nov 2016 23:36:40 +0530
+Subject: [PATCH] powernv: Clear SPRN_PSSCR when a POWER9 CPU comes online
+
+Ensure that PSSCR is set to a safe value corresponding to no
+state-loss each time a POWER9 CPU comes online.
+
+Signed-off-by: Gautham R. Shenoy <ego@linux.vnet.ibm.com>
+Acked-By: Michael Neuling <mikey@neuling.org>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/kernel/cpu_setup_power.S | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/powerpc/kernel/cpu_setup_power.S b/arch/powerpc/kernel/cpu_setup_power.S
+index bdfc1c6..fe35ef2 100644
+--- a/arch/powerpc/kernel/cpu_setup_power.S
++++ b/arch/powerpc/kernel/cpu_setup_power.S
+@@ -96,6 +96,7 @@ _GLOBAL(__setup_cpu_power9)
+ 	mtlr	r11
+ 	beqlr
+ 	li	r0,0
++	mtspr	SPRN_PSSCR,r0
+ 	mtspr	SPRN_LPID,r0
+ 	mfspr	r3,SPRN_LPCR
+ 	ori	r3, r3, LPCR_PECEDH
+@@ -116,6 +117,7 @@ _GLOBAL(__restore_cpu_power9)
+ 	mtlr	r11
+ 	beqlr
+ 	li	r0,0
++	mtspr	SPRN_PSSCR,r0
+ 	mtspr	SPRN_LPID,r0
+ 	mfspr   r3,SPRN_LPCR
+ 	ori	r3, r3, LPCR_PECEDH
+-- 
+2.7.4
+

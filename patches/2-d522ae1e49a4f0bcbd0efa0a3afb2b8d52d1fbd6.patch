@@ -1,0 +1,44 @@
+From d522ae1e49a4f0bcbd0efa0a3afb2b8d52d1fbd6 Mon Sep 17 00:00:00 2001
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Mon, 28 Nov 2016 11:47:04 +0530
+Subject: [PATCH] powerpc/mm: Batch tlb flush when invalidating pte entries
+
+This will improve the task exit case, by batching tlb invalidates.
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/include/asm/book3s/64/radix.h | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/radix.h b/arch/powerpc/include/asm/book3s/64/radix.h
+index f4066cf..b4d1302 100644
+--- a/arch/powerpc/include/asm/book3s/64/radix.h
++++ b/arch/powerpc/include/asm/book3s/64/radix.h
+@@ -140,13 +140,20 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
+ 		unsigned long new_pte;
+ 
+ 		old_pte = __radix_pte_update(ptep, ~0, 0);
+-		asm volatile("ptesync" : : : "memory");
+ 		/*
+ 		 * new value of pte
+ 		 */
+ 		new_pte = (old_pte | set) & ~clr;
+-		radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
+-		__radix_pte_update(ptep, 0, new_pte);
++		/*
++		 * If we are trying to clear the pte, we can skip
++		 * the below sequence and batch the tlb flush. The
++		 * tlb flush batching is done by mmu gather code
++		 */
++		if (new_pte) {
++			asm volatile("ptesync" : : : "memory");
++			radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
++			__radix_pte_update(ptep, 0, new_pte);
++		}
+ 	} else
+ 		old_pte = __radix_pte_update(ptep, clr, set);
+ 	asm volatile("ptesync" : : : "memory");
+-- 
+2.7.4
+
