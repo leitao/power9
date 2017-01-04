@@ -1,0 +1,19 @@
+3f7cd919f3df05918535de39273174710409eb40 KVM/PPC/Book3S HV: Convert to hotplug state machine
+e34af7849014f1d80899b811cf9021588cb8dd88 KVM: PPC: Book3S: Move prototypes for KVM functions into kvm_ppc.h
+908a09359ef4ed9e9ca1147b9d35f829d7e42a74 KVM: PPC: Book3S HV: Comment style and print format fixups
+f4944613ad1ab6760589d5791488be1236c07fcc KVM: PPC: Decrease the powerpc default halt poll max value
+e03f3921e597cbcc6880033e5c52fa1db524f88b KVM: PPC: Book3S HV: Add check for module parameter halt_poll_ns
+307d93e476a340116cbddd1d3d7edf9b3cdd7506 KVM: PPC: Book3S HV: Use generic kvm module parameters
+a8acaece5d88db234d0b82b8692dea15d602f622 KVM: PPC: Correctly report KVM_CAP_PPC_ALLOC_HTAB
+e2702871b4b70a39e08c46744a8fa16e281120aa KVM: PPC: Book3S HV: Fix compilation with unusual configurations
+2ee13be34b135957733b84ef5f7bd30c80ec3c42 KVM: PPC: Book3S HV: Update kvmppc_set_arch_compat() for ISA v3.00
+45c940ba490df28cb87b993981a5f63df6bbb8db KVM: PPC: Book3S HV: Treat POWER9 CPU threads as independent subcores
+84f7139c064ed740d183ae535bda2f6d7ffc0d57 KVM: PPC: Book3S HV: Enable hypervisor virtualization interrupts while in guest
+bf53c88e42ac5dfdef649888d01b3bc96375647b KVM: PPC: Book3S HV: Use stop instruction rather than nap on POWER9
+f725758b899f11cac6b375e332e092dc855b9210 KVM: PPC: Book3S HV: Use OPAL XICS emulation on POWER9
+1704a81ccebc69b5223220df97cde8a645271828 KVM: PPC: Book3S HV: Use msgsnd for IPIs to other cores on POWER9
+7c5b06cadf274f2867523c1130c11387545f808e KVM: PPC: Book3S HV: Adapt TLB invalidations to work on POWER9
+e9cf1e085647b433ccd98582681b17121ecfdc21 KVM: PPC: Book3S HV: Add new POWER9 guest-accessible SPRs
+83677f551e0a6ad43061053e7d6208abcd2707f0 KVM: PPC: Book3S HV: Adjust host/guest context switch for POWER9
+7a84084c60545bc47f3339344f1af5f94599c966 KVM: PPC: Book3S HV: Set partition table rather than SDR1 on POWER9
+abb7c7ddbacd30b9a879491998966771504760bd KVM: PPC: Book3S HV: Adapt to new HPTE format on POWER9
