@@ -1,13 +1,10 @@
-#!/bin/bash -x
+#!/bin/bash
 
 [ -d patches ] || mkdir patches
 I=10
 
-rm -fr patches/*
-
 cat arch_patches.txt | while read LINE
 do
-	echo $LINE
 	COMMIT=$(echo $LINE | awk '{print $1}')
 
 	# skip comments
@@ -15,6 +12,6 @@ do
 	then
 		continue
 	fi
-	git format-patch --stdout -1 $COMMIT > patches/$I-$COMMIT.patch
+	git show -s --pretty=oneline $COMMIT | cat
 	I=$(($I+10))
 done

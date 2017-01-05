@@ -1,34 +1,33 @@
-c7c3f568beff2b72f02a7807ec48b0bc66a7ead6 powerpc/perf: macros for power9 format encoding
-18201b204286a1ef478ef52b00ab9f6c5739b4f6 powerpc/perf: power9 raw event format encoding
-d522ae1e49a4f0bcbd0efa0a3afb2b8d52d1fbd6 powerpc/mm: Batch tlb flush when invalidating pte entries
-e58d1cf24309b3b58c7cff7ea1f873e498fdaa39 powerpc/mm: update radix__pte_update to not do full mm tlb flush
-b3603e174fc81598e8b060d5e9aafe19ee6e65cf powerpc/mm: update radix__ptep_set_access_flag to not do full mm tlb flush
-6d3a0379ebdc8e35662343f5359ac4589b79aec2 powerpc/mm: Add radix__tlb_flush_pte_p9_dd1()
-3b10d0095a1e2d6ce11f6537e04806ff8aba9cdd powerpc/mm/radix: Prevent kernel execution of user space
-1d18ad026844b60d933c25ae38360f86a8cf41eb powerpc/mm: Detect instruction fetch denied and report
-ee97b6b99f42285d29d439f2e5376e03b2760e09 powerpc/mm/radix: Setup AMOR in HV mode to allow key 0
-378f96d3cd442d5cb8e2692d8767a4c036070594 powernv: Clear SPRN_PSSCR when a POWER9 CPU comes online
-555c16328ae6d75a90e234eac9b51998d68f185b powerpc/mm: Correct process and partition table max size
-29a969b764817c1dce819c2bc8c00a147529a5ef powerpc: Revert Load Monitor Register Support
-07e326610e5634e5038fce32fff370949eb42101 mm: add tlb_remove_check_page_size_change to track page size change
-1f0f2e72270c089c291aac794800cc326c4c05dd powerpc/reg: Add definition for LPCR_PECE_HVEE
-9dd17e8517f5ccd594a01374b0b41ec1a1c266af powerpc/64: Define new ISA v3.00 logical PVR value and PCR register value
-ffe6d810fe95208b9f132fb7687930185129305a powerpc/powernv: Define real-mode versions of OPAL XICS accessors
-9d66195807ac6cb8a14231fd055ff755977c5fca powerpc/64: Provide functions for accessing POWER9 partition table
-7a43906f5cbfb74712af168988455e350707e310 powerpc: Set missing wakeup bit in LPCR on POWER9
-7fd317f8c330a8d3ed6468d5670e5c09c25846e2 powerpc/64: Add some more SPRs and SPR bits for POWER9
-cac4a185405d4415eca269cae976438b44a37ae0 powerpc/mm: Fix missing update of HID register on secondary CPUs
-96ed1fe511a8b4948e53f3bad431d8737e8f231f powerpc/mm/radix: Invalidate ERAT on tlbiel for POWER9 DD1
-6b243fcfb5f1e16bcf732e6f86a63f8af5b59a9f powerpc/64: Simplify adaptation to new ISA v3.00 HPTE format
-bd77c4498616e27d5725b5959d880ce2272fefa9 powerpc/mm/radix: Use tlbiel only if we ever ran on the current cpu
-1a34439e5a0b2235e43f96816dbb15ee1154f656 powerpc/64: Fix incorrect return value from __copy_tofrom_user (nothing to do with power9, but
-good to have).
-05af40e885955065aee8bb7425058eb3e1adca08 powerpc/pseries: Fix stack corruption in htpe code (nothing to do with power9, but good to have).
-b970b41ea68ace17f389c8387c1df4a86aa039a0 powerpc/64/kexec: Copy image with MMU off when possible
-be34d300597a7a4fb38c6e3f9929af2f1faa23b8 powerpc/mm: Add radix flush all with IS=3
-fe036a0605d60d6c81ffdcd6241e9ae0013fe235 powerpc/64/kexec: Fix MMU cleanup on radix
-fc48bad53142c991a5280940fd7ee8d226697b2c powerpc/64/kexec: NULL check "clear_all" in kexec_sequence
-ad410674f5606a53ea2f2d45a78448a95e271fa0 powerpc/mm: Update the HID bit when switching from radix to hash
-c6d1a767b9eaa74f0969378ec47791ff8318a65c powerpc/mm/radix: Use different pte update sequence for different POWER9 revs
-694c4951922d114e789f669deb409b2aef440ae9 powerpc/mm/radix: Use different RTS encoding for different POWER9 revs
-7dccfbc325bb59f94521d544a8ae12148622b4f2 powerpc/book3s: Add a cpu table entry for different POWER9 revs
+c7c3f568beff2b72f02a7807ec48b0bc66a7ead6
+18201b204286a1ef478ef52b00ab9f6c5739b4f6
+d522ae1e49a4f0bcbd0efa0a3afb2b8d52d1fbd6
+e58d1cf24309b3b58c7cff7ea1f873e498fdaa39
+b3603e174fc81598e8b060d5e9aafe19ee6e65cf
+6d3a0379ebdc8e35662343f5359ac4589b79aec2
+3b10d0095a1e2d6ce11f6537e04806ff8aba9cdd
+1d18ad026844b60d933c25ae38360f86a8cf41eb
+ee97b6b99f42285d29d439f2e5376e03b2760e09
+378f96d3cd442d5cb8e2692d8767a4c036070594
+555c16328ae6d75a90e234eac9b51998d68f185b
+29a969b764817c1dce819c2bc8c00a147529a5ef
+07e326610e5634e5038fce32fff370949eb42101
+1f0f2e72270c089c291aac794800cc326c4c05dd
+9dd17e8517f5ccd594a01374b0b41ec1a1c266af
+ffe6d810fe95208b9f132fb7687930185129305a
+9d66195807ac6cb8a14231fd055ff755977c5fca
+7a43906f5cbfb74712af168988455e350707e310
+7fd317f8c330a8d3ed6468d5670e5c09c25846e2
+cac4a185405d4415eca269cae976438b44a37ae0
+96ed1fe511a8b4948e53f3bad431d8737e8f231f
+6b243fcfb5f1e16bcf732e6f86a63f8af5b59a9f
+bd77c4498616e27d5725b5959d880ce2272fefa9
+1a34439e5a0b2235e43f96816dbb15ee1154f656
+05af40e885955065aee8bb7425058eb3e1adca08
+b970b41ea68ace17f389c8387c1df4a86aa039a0
+be34d300597a7a4fb38c6e3f9929af2f1faa23b8
+fe036a0605d60d6c81ffdcd6241e9ae0013fe235
+fc48bad53142c991a5280940fd7ee8d226697b2c
+ad410674f5606a53ea2f2d45a78448a95e271fa0
+c6d1a767b9eaa74f0969378ec47791ff8318a65c
+694c4951922d114e789f669deb409b2aef440ae9
+7dccfbc325bb59f94521d544a8ae12148622b4f2
